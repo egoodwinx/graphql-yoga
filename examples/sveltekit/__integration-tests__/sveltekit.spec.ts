@@ -9,8 +9,11 @@ let sveltekitProcess: ReturnType<typeof spawn>;
 
 const timings = {
 	setup: {
-		waitAfterPreview: 5000,
-		total: 20_000 // build + preview + {waitAfterPreview} is expected to be less than 20sec
+		// Polled instead of assumed: CI runners are shared with several other
+		// examples' dev/preview servers, so a fixed sleep here was flaky under load.
+		waitForServerInterval: 500,
+		waitForServerTimeout: 15_000,
+		total: 20_000 // build + preview + poll-for-ready is expected to be less than 20sec
 	},
 	waitForSelector: 999,
 	waitForResponse: 1999
@@ -30,8 +33,21 @@ describeIf(process.versions.node.startsWith('2'))('SvelteKit integration', () =>
 		// Start sveltekit
 		sveltekitProcess = spawn('pnpm', ['--filter', 'example-sveltekit', 'preview']);
 
-		// Wait for sveltekit to start
-		await setTimeout$(timings.setup.waitAfterPreview);
+		// Wait for sveltekit to actually be ready, instead of guessing with a fixed sleep
+		const deadline = Date.now() + timings.setup.waitForServerTimeout;
+		for (;;) {
+			try {
+				await fetch('http://localhost:3007/');
+				break;
+			} catch (error) {
+				if (Date.now() > deadline) {
+					throw new Error('Timed out waiting for the SvelteKit preview server to start', {
+						cause: error
+					});
+				}
+				await setTimeout$(timings.setup.waitForServerInterval);
+			}
+		}
 
 		browser = await chromium.launch({
 			headless: process.env.PLAYWRIGHT_HEADLESS !== 'false',
