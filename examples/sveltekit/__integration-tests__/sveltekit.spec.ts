@@ -13,7 +13,7 @@ const timings = {
 		// examples' dev/preview servers, so a fixed sleep here was flaky under load.
 		waitForServerInterval: 500,
 		waitForServerTimeout: 15_000,
-		total: 30_000 // build + preview + poll-for-ready is expected to be less than 30sec
+		total: 20_000 // build + preview + poll-for-ready is expected to be less than 20sec
 	},
 	waitForSelector: 999,
 	waitForResponse: 1999
